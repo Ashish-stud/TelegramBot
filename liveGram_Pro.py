@@ -22,8 +22,8 @@ from telegram.error import TelegramError, Forbidden, BadRequest
 TOKEN = "8292810744:AAGTYsSiIU_cnRRNjG2JIKznxowTt7_x4Ds"  # Replace with your real bot token from BotFather
 ADMIN_CHAT_ID = 7350047143
 VIDEO_FILE = "circle.mp4"
-BACKUP_GROUP_LINK = "https://t.me/yourbackupgroup"  # Updated to backup group link
-WELCOME_MESSAGE = "🎉 Welcome, {user_first_name}!"
+BACKUP_GROUP_LINK = "https://t.me/+m1urakBVenAzOWQx"  # Updated to backup group link
+WELCOME_MESSAGE = "🎉 Welcome Sir/Ma'am, {user_first_name} Aap Yahaan Padhaare !"
 
 # Persistent storage for users and config
 users = set()  # Active users
@@ -582,4 +582,5 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+
     main()
