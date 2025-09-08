@@ -133,10 +133,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("📢 Broadcast Options", callback_data="broadcast_menu")],
-        [InlineKeyboardButton("📝 Edit Welcome Message", callback_data="edit_welcome_message")],
-        [InlineKeyboardButton("🎞️ Edit Welcome Video", callback_data="edit_welcome_video")],
-        [InlineKeyboardButton("🔗 Edit Backup Button", callback_data="edit_backup_button")],
-        [InlineKeyboardButton("📞 Edit Contact Button", callback_data="edit_contact_button")],
+        [InlineKeyboardButton("🛠️ Welcome Configuration", callback_data="welcome_config_menu")],
         [InlineKeyboardButton("📊 Show Stats", callback_data="show_stats")]
     ]
     menu_text = "⚙️ Admin Menu: What do you want to do?"
@@ -145,6 +142,35 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg = await update.message.reply_text(menu_text, reply_markup=InlineKeyboardMarkup(keyboard))
         context.user_data[chat_id]['bot_messages'].append(msg.message_id)
+
+# --- Welcome Config Menu ---
+async def welcome_config_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display welcome configuration submenu."""
+    q = update.callback_query
+    await q.answer()
+    chat_id = update.effective_chat.id
+
+    # Delete previous bot messages for admin
+    if chat_id in context.user_data and 'bot_messages' in context.user_data[chat_id]:
+        for msg_id in context.user_data[chat_id]['bot_messages']:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except BadRequest:
+                print(f"Failed to delete message {msg_id} in chat {chat_id}: Message may have been already deleted.")
+            except Forbidden:
+                print(f"Admin {chat_id} has blocked the bot during message deletion.")
+            except TelegramError as e:
+                print(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
+        context.user_data[chat_id]['bot_messages'] = []
+
+    keyboard = [
+        [InlineKeyboardButton("📝 Edit Welcome Message", callback_data="edit_welcome_message")],
+        [InlineKeyboardButton("🎞️ Edit Welcome Video", callback_data="edit_welcome_video")],
+        [InlineKeyboardButton("🔗 Edit Backup Button", callback_data="edit_backup_button")],
+        [InlineKeyboardButton("📞 Edit Contact Button", callback_data="edit_contact_button")],
+        [InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_to_main")]
+    ]
+    await q.edit_message_text("🛠️ Welcome Configuration: What do you want to edit?", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Broadcast Menu ---
 async def broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -176,23 +202,6 @@ async def broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_to_main")]
     ]
     await q.edit_message_text("📢 Broadcast Options: What do you want to prepare?", reply_markup=InlineKeyboardMarkup(keyboard))
-
-# ===============================
-# BUTTON CONFIGURATION
-# ===============================
-async def edit_backup_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle editing of backup button text and link."""
-    q = update.callback_query
-    await q.answer()
-    context.user_data['awaiting'] = "backup_button"
-    await q.edit_message_text("🔗 Send new backup button in format: Text[https://link] (e.g., Join Us[https://example.com])")
-
-async def edit_contact_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle editing of contact button text and link."""
-    q = update.callback_query
-    await q.answer()
-    context.user_data['awaiting'] = "contact_button"
-    await q.edit_message_text("📞 Send new contact button in format: Text[https://link] (e.g., Contact Support[https://t.me/admin])")
 
 # ===============================
 # BROADCAST HANDLER
@@ -277,7 +286,7 @@ async def publish(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"Failed to send to {uid}: {e}")
             failed += 1
 
-    msg = await q.edit_message_text(f"✅ Broadcast sent to {len(recipients)-failed}/{len(recipients)} users")
+    msg = await q.edit_message_text(f"✅ Broadcast sent to {len(recipients)-failed}/{len(recipient s)} users")
     context.user_data[chat_id]['bot_messages'].append(msg.message_id)
     context.user_data.clear()
 
@@ -307,10 +316,67 @@ async def edit_welcome_video(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.edit_message_text("🎞️ Send the new welcome video file (or type 'remove' to clear).")
 
 # ===============================
+# BUTTON CONFIGURATION
+# ===============================
+async def edit_backup_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle editing of backup button text and link."""
+    q = update.callback_query
+    await q.answer()
+    context.user_data['awaiting'] = "backup_button"
+    await q.edit_message_text("🔗 Send new backup button in format: Text[link] (e.g., Join Us[https://example.com])")
+
+async def edit_contact_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle editing of contact button text and link."""
+    q = update.callback_query
+    await q.answer()
+    context.user_data['awaiting'] = "contact_button"
+    await q.edit_message_text("📞 Send new contact button in format: Text[link] (e.g., Contact Support[https://t.me/admin])")
+
+# ===============================
+# STATS HANDLER
+# ===============================
+async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display stats via menu callback."""
+    q = update.callback_query
+    await q.answer()
+    chat_id = update.effective_chat.id
+
+    # Delete previous bot messages for admin
+    if chat_id in context.user_data and 'bot_messages' in context.user_data[chat_id]:
+        for msg_id in context.user_data[chat_id]['bot_messages']:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except BadRequest:
+                print(f"Failed to delete message {msg_id} in chat {chat_id}: Message may have been already deleted.")
+            except Forbidden:
+                print(f"Admin {chat_id} has blocked the bot during message deletion.")
+            except TelegramError as e:
+                print(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
+        context.user_data[chat_id]['bot_messages'] = []
+
+    subscribed_count = len(users)
+    blocked_count = len(blocked_users)
+    total_interactions = subscribed_count + blocked_count
+    subscribed_list = "\n".join([f"User ID: {uid}" for uid in sorted(users)]) or "No subscribed users."
+    blocked_list = "\n".join([f"User ID: {uid}" for uid in sorted(blocked_users)]) or "No blocked users."
+
+    stats_message = (
+        f"📊 Bot Statistics:\n\n"
+        f"👥 Subscribed Users: {subscribed_count}\n"
+        f"🚫 Blocked Users: {blocked_count}\n"
+        f"📈 Total Interactions: {total_interactions}\n\n"
+        f"📋 Subscribed Users List:\n{subscribed_list}\n\n"
+        f"🚫 Blocked Users List:\n{blocked_list}\n\n"
+        f"ℹ️ Note: Blocked users are detected when they block the bot after starting."
+    )
+    msg = await q.edit_message_text(stats_message, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_to_main")]]))
+    context.user_data[chat_id]['bot_messages'].append(msg.message_id)
+
+# ===============================
 # ADMIN INPUT HANDLERS
 # ===============================
 async def admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle admin inputs for broadcast, welcome, and backup group link."""
+    """Handle admin inputs for broadcast, welcome, and buttons."""
     if update.effective_chat.id != ADMIN_CHAT_ID:
         return
 
@@ -396,7 +462,7 @@ async def admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
             success = True
         except:
-            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[https://link]")
+            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[link]")
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
     elif awaiting == "contact_button" and update.message.text:
         try:
@@ -408,13 +474,15 @@ async def admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
             success = True
         except:
-            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[https://link]")
+            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[link]")
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
 
     if success:
         context.user_data['awaiting'] = None
         if awaiting in ["text", "photo", "video", "button"]:
             await broadcast_menu(update, context)
+        elif awaiting in ["welcome_message", "welcome_video", "backup_button", "contact_button"]:
+            await welcome_config_menu(update, context)
         else:
             await menu(update, context)
 
@@ -518,6 +586,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "broadcast_menu":
         await broadcast_menu(update, context)
+    elif data == "welcome_config_menu":
+        await welcome_config_menu(update, context)
     elif data == "add_text":
         await add_text(update, context)
     elif data == "add_photo":
