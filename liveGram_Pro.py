@@ -22,7 +22,6 @@ from telegram.error import TelegramError, Forbidden, BadRequest
 TOKEN = "8292810744:AAGTYsSiIU_cnRRNjG2JIKznxowTt7_x4Ds"  # Replace with your real bot token from BotFather
 ADMIN_CHAT_ID = 7350047143
 VIDEO_FILE = "circle.mp4"
-BACKUP_GROUP_LINK = "https://t.me/+m1urakBVenAzOWQx"  # Updated to backup group link
 WELCOME_MESSAGE = "🎉 Welcome Sir/Ma'am, {user_first_name} Aap Yahaan Padhaare !"
 
 # Persistent storage for users and config
@@ -31,7 +30,10 @@ blocked_users = set()  # Blocked users
 config = {
     "welcome_message": WELCOME_MESSAGE,
     "video_file": VIDEO_FILE,
-    "backup_group_link": BACKUP_GROUP_LINK
+    "backup_button_text": "✨ Visit Backup Group",  # Default text
+    "backup_button_link": "https://t.me/+m1urakBVenAzOWQx",  # Default link
+    "contact_button_text": "📩 Contact Admin",  # Default text
+    "contact_button_link": f"tg://user?id={ADMIN_CHAT_ID}"  # Default link
 }
 
 # ===============================
@@ -45,8 +47,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     blocked_users.discard(chat_id)  # Remove from blocked if they start again
 
     keyboard = [
-        [InlineKeyboardButton("✨ Visit Backup Group", url=config["backup_group_link"])],
-        [InlineKeyboardButton("📩 Contact Admin", url=f"tg://user?id={ADMIN_CHAT_ID}")],
+        [InlineKeyboardButton(config["backup_button_text"], url=config["backup_button_link"])],
+        [InlineKeyboardButton(config["contact_button_text"], url=config["contact_button_link"])],
     ]
 
     # Send welcome message
@@ -133,7 +135,8 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📢 Broadcast Options", callback_data="broadcast_menu")],
         [InlineKeyboardButton("📝 Edit Welcome Message", callback_data="edit_welcome_message")],
         [InlineKeyboardButton("🎞️ Edit Welcome Video", callback_data="edit_welcome_video")],
-        [InlineKeyboardButton("🔗 Edit Backup Group Link", callback_data="edit_backup_group_link")],
+        [InlineKeyboardButton("🔗 Edit Backup Button", callback_data="edit_backup_button")],
+        [InlineKeyboardButton("📞 Edit Contact Button", callback_data="edit_contact_button")],
         [InlineKeyboardButton("📊 Show Stats", callback_data="show_stats")]
     ]
     menu_text = "⚙️ Admin Menu: What do you want to do?"
@@ -173,6 +176,23 @@ async def broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_to_main")]
     ]
     await q.edit_message_text("📢 Broadcast Options: What do you want to prepare?", reply_markup=InlineKeyboardMarkup(keyboard))
+
+# ===============================
+# BUTTON CONFIGURATION
+# ===============================
+async def edit_backup_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle editing of backup button text and link."""
+    q = update.callback_query
+    await q.answer()
+    context.user_data['awaiting'] = "backup_button"
+    await q.edit_message_text("🔗 Send new backup button in format: Text[https://link] (e.g., Join Us[https://example.com])")
+
+async def edit_contact_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle editing of contact button text and link."""
+    q = update.callback_query
+    await q.answer()
+    context.user_data['awaiting'] = "contact_button"
+    await q.edit_message_text("📞 Send new contact button in format: Text[https://link] (e.g., Contact Support[https://t.me/admin])")
 
 # ===============================
 # BROADCAST HANDLER
@@ -287,56 +307,6 @@ async def edit_welcome_video(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.edit_message_text("🎞️ Send the new welcome video file (or type 'remove' to clear).")
 
 # ===============================
-# BACKUP GROUP LINK CONFIGURATION
-# ===============================
-async def edit_backup_group_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle editing of backup group link."""
-    q = update.callback_query
-    await q.answer()
-    context.user_data['awaiting'] = "backup_group_link"
-    await q.edit_message_text("🔗 Send the new backup group link (e.g., https://t.me/yourbackupgroup).")
-
-# ===============================
-# STATS HANDLER
-# ===============================
-async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Display stats via menu callback."""
-    q = update.callback_query
-    await q.answer()
-    chat_id = update.effective_chat.id
-
-    # Delete previous bot messages for admin
-    if chat_id in context.user_data and 'bot_messages' in context.user_data[chat_id]:
-        for msg_id in context.user_data[chat_id]['bot_messages']:
-            try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-            except BadRequest:
-                print(f"Failed to delete message {msg_id} in chat {chat_id}: Message may have been already deleted.")
-            except Forbidden:
-                print(f"Admin {chat_id} has blocked the bot during message deletion.")
-            except TelegramError as e:
-                print(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
-        context.user_data[chat_id]['bot_messages'] = []
-
-    subscribed_count = len(users)
-    blocked_count = len(blocked_users)
-    total_interactions = subscribed_count + blocked_count
-    subscribed_list = "\n".join([f"User ID: {uid}" for uid in sorted(users)]) or "No subscribed users."
-    blocked_list = "\n".join([f"User ID: {uid}" for uid in sorted(blocked_users)]) or "No blocked users."
-
-    stats_message = (
-        f"📊 Bot Statistics:\n\n"
-        f"👥 Subscribed Users: {subscribed_count}\n"
-        f"🚫 Blocked Users: {blocked_count}\n"
-        f"📈 Total Interactions: {total_interactions}\n\n"
-        f"📋 Subscribed Users List:\n{subscribed_list}\n\n"
-        f"🚫 Blocked Users List:\n{blocked_list}\n\n"
-        f"ℹ️ Note: Blocked users are detected when they block the bot after starting."
-    )
-    msg = await q.edit_message_text(stats_message, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="back_to_main")]]))
-    context.user_data[chat_id]['bot_messages'].append(msg.message_id)
-
-# ===============================
 # ADMIN INPUT HANDLERS
 # ===============================
 async def admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -416,14 +386,29 @@ async def admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             msg = await update.message.reply_text("⚠️ Please send a video file or type 'remove'.")
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
-    elif awaiting == "backup_group_link" and update.message.text:
-        if update.message.text.startswith("https://t.me/"):
-            config['backup_group_link'] = update.message.text
-            msg = await update.message.reply_text("✅ Backup group link updated.")
+    elif awaiting == "backup_button" and update.message.text:
+        try:
+            text, url = update.message.text.split("[", 1)
+            url = url.rstrip("]")
+            config["backup_button_text"] = text.strip()
+            config["backup_button_link"] = url.strip()
+            msg = await update.message.reply_text(f"✅ Backup button updated to: {text.strip()} [{url.strip()}]")
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
             success = True
-        else:
-            msg = await update.message.reply_text("⚠️ Please send a valid Telegram backup group link (e.g., https://t.me/yourbackupgroup).")
+        except:
+            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[https://link]")
+            context.user_data[chat_id]['bot_messages'].append(msg.message_id)
+    elif awaiting == "contact_button" and update.message.text:
+        try:
+            text, url = update.message.text.split("[", 1)
+            url = url.rstrip("]")
+            config["contact_button_text"] = text.strip()
+            config["contact_button_link"] = url.strip()
+            msg = await update.message.reply_text(f"✅ Contact button updated to: {text.strip()} [{url.strip()}]")
+            context.user_data[chat_id]['bot_messages'].append(msg.message_id)
+            success = True
+        except:
+            msg = await update.message.reply_text("⚠️ Invalid format. Use: Text[https://link]")
             context.user_data[chat_id]['bot_messages'].append(msg.message_id)
 
     if success:
@@ -549,8 +534,10 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_welcome_message(update, context)
     elif data == "edit_welcome_video":
         await edit_welcome_video(update, context)
-    elif data == "edit_backup_group_link":
-        await edit_backup_group_link(update, context)
+    elif data == "edit_backup_button":
+        await edit_backup_button(update, context)
+    elif data == "edit_contact_button":
+        await edit_contact_button(update, context)
     elif data == "show_stats":
         await show_stats(update, context)
     elif data == "back_to_main":
@@ -582,5 +569,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-
     main()
